@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iron Ore Conveyor — 3D Model</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root{
+    --bg:#0e1117; --side:#262730; --text:#fafafa; --muted:#a3a8b8; --border:#3a3f47; --accent:#ff4b4b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:"Source Sans Pro",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px}
+  #app{display:flex;min-height:100vh}
+  #sidebar{width:21rem;min-width:21rem;background:var(--side);padding:1.5rem 1.2rem 3rem;overflow-y:auto;height:100vh;position:sticky;top:0}
+  #sidebar h3{font-size:1.25rem;font-weight:600;margin:1.4rem 0 .6rem}
+  #sidebar h3:first-child{margin-top:0}
+  .ctl{margin:0 0 1rem}
+  .ctl label.l{display:flex;justify-content:space-between;font-size:.875rem;color:var(--text);margin-bottom:.25rem;gap:.5rem}
+  .ctl label.l .v{color:var(--accent);font-weight:600;white-space:nowrap}
+  .ctl input[type=range]{width:100%;accent-color:var(--accent)}
+  .ctl.disabled{opacity:.4;pointer-events:none}
+  .chk{display:flex;align-items:flex-start;gap:.5rem;margin:0 0 .8rem;font-size:.95rem;cursor:pointer}
+  .chk input{accent-color:var(--accent);margin-top:.25rem}
+  .help{font-size:.75rem;color:var(--muted);margin:-.4rem 0 .8rem 1.6rem}
+  .radio{display:flex;align-items:center;gap:.5rem;margin:.2rem 0;font-size:.95rem;cursor:pointer}
+  .radio input{accent-color:var(--accent)}
+  #main{flex:1;padding:3.5rem 2.5rem 3rem;min-width:0}
+  h1{font-size:2.5rem;font-weight:700;margin:0 0 .6rem;padding:.5rem 0 1rem}
+  .caption{font-size:.875rem;color:var(--muted);margin:.25rem 0 1rem}
+  #cols{display:grid;grid-template-columns:1fr 3.2fr;gap:1rem;align-items:start}
+  #info h2{font-size:1.75rem;font-weight:600;margin:0 0 .8rem;padding:.4rem 0 .5rem}
+  .metric{margin:0 0 1rem}
+  .metric .k{font-size:.875rem;color:var(--text)}
+  .metric .val{font-size:2.25rem;line-height:1.2}
+  details{border:1px solid var(--border);border-radius:.5rem;margin:.5rem 0 1rem;padding:.5rem .8rem}
+  summary{cursor:pointer;font-size:.95rem}
+  details ul{padding-left:1.1rem;font-size:.9rem}
+  details li{margin-bottom:.5rem}
+  hr{border:none;border-top:1px solid var(--border);margin:1.5rem 0 1rem}
+  #plot{width:100%;height:780px}
+  #spinner{display:none;color:var(--muted);font-size:.9rem;margin-bottom:.5rem}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:.5rem;padding:.55rem 1rem;font-size:.95rem;font-weight:600;cursor:pointer}
+  .btn:hover{filter:brightness(1.1)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.full{width:100%}
+  #toolbar{display:flex;align-items:center;gap:1rem;margin:0 0 .6rem;flex-wrap:wrap}
+  #toolbar .caption{margin:0}
+  #hud{display:none;margin-top:.8rem;border:1px solid var(--border);border-radius:.5rem;padding:.8rem 1rem;background:#12151c}
+  #hud h2{font-size:1.2rem;margin:0 0 .6rem}
+  #hudbody{display:flex;gap:1.2rem;flex-wrap:wrap;align-items:flex-start}
+  .hud-grid{display:grid;grid-template-columns:auto auto;gap:.3rem 1rem;font-size:.9rem;min-width:300px}
+  .hud-grid .k{color:var(--muted)}
+  .hud-grid .v{font-weight:600}
+  #feedwrap{font-size:.75rem;color:var(--muted)}
+  #feed{display:block;border:1px solid var(--border);border-radius:.3rem;background:#000}
+  #shotswrap{flex:1;min-width:260px}
+  #shots{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.4rem}
+  .shot{flex:0 0 auto;font-size:.7rem;color:var(--muted);text-align:center}
+  .shot canvas{display:block;border:1px solid var(--border);border-radius:.25rem}
+  @media (max-width:1000px){
+    #app{flex-direction:column}
+    #sidebar{width:100%;min-width:0;height:auto;position:static}
+    #cols{grid-template-columns:1fr}
+    #main{padding:1.5rem 1rem}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar"></aside>
+  <main id="main">
+    <h1>Conveyor Digital Twin 3D Model</h1>
+    <div class="caption">Parametric 3D reconstruction of a troughed mine conveyor: belt, 3-roll troughing idlers, flat return idlers, head/tail pulleys, steel trestle, walkway &amp; handrails, and an ore load riding the trough.</div>
+    <div id="spinner">Building conveyor...</div>
+    <div id="cols">
+      <div id="info">
+        <h2>Derived specs</h2>
+        <div class="metric"><div class="k">Horizontal run</div><div class="val" id="m_run"></div></div>
+        <div class="metric"><div class="k">Vertical lift</div><div class="val" id="m_lift"></div></div>
+        <div class="metric"><div class="k">Troughing idler sets</div><div class="val" id="m_sets"></div></div>
+        <div class="metric"><div class="k">Total rollers modelled</div><div class="val" id="m_roll"></div></div>
+        <div class="metric"><div class="k">Trestle towers</div><div class="val" id="m_tow"></div></div>
+        <details>
+          <summary>What am I looking at?</summary>
+          <ul>
+            <li><b>Carry belt</b> (top, troughed): moves from the <b>tail pulley</b> (loading end, low) to the <b>head pulley</b> (discharge end, high). It's shaped into a shallow U by 3-roll <b>troughing idlers</b> so loose ore rides in the middle without spilling.</li>
+            <li><b>Return belt</b> (bottom, flat): the empty strand running back down to the tail, riding on widely-spaced flat <b>return idlers</b>.</li>
+            <li><b>Head pulley</b>: larger, rubber-lagged, driven by the <b>motor/gearbox</b> shown as the housing at the discharge end.</li>
+            <li><b>Tail pulley</b>: at the loading end, backed by a <b>take-up counterweight</b> that keeps belt tension constant.</li>
+            <li><b>Trestle</b>: raked steel legs + cross-bracing carrying the whole gallery, spaced along the incline.</li>
+            <li><b>Walkway &amp; handrail</b>: continuous inspection access down the side(s) of the gallery, posts kept vertical (as gravity, not the incline, dictates rail geometry).</li>
+            <li><b>Ore load</b>: chunks piled according to a natural angle-of-repose profile — highest at the trough centre, tapering toward the edges.</li>
+          </ul>
+        </details>
+        <div class="caption">Geometry ranges (trough angle 20/35/45°, carry spacing ~1.0–1.5 m, return spacing ~2.5–3.5 m, incline capped at 18°) follow standard CEMA-style troughed-belt conveyor practice for bulk ore handling.</div>
+      </div>
+      <div id="plotcol">
+        <div id="toolbar">
+          <button class="btn" id="btn_launch">🚁 Launch drone</button>
+          <span class="caption" id="tbhint">The drone takes off from the helipad, locks onto the damage spot on the moving belt and follows it at belt speed while capturing images.</span>
+        </div>
+        <div id="plot"></div>
+        <div class="caption" id="animcap">Use the ▶ Play / ⏸ Pause buttons in the bottom-left of the plot to run the belt.</div>
+        <div id="hud">
+          <h2>🚁 Drone inspection</h2>
+          <div id="hudbody">
+            <div class="hud-grid">
+              <span class="k">Status</span><span class="v" id="h_phase">—</span>
+              <span class="k">Altitude (above ground)</span><span class="v" id="h_alt">—</span>
+              <span class="k">Drone speed</span><span class="v" id="h_spd">—</span>
+              <span class="k">Damage spot position</span><span class="v" id="h_spot">—</span>
+              <span class="k">Images captured</span><span class="v" id="h_img">0</span>
+            </div>
+            <div id="feedwrap">Drone camera feed<canvas id="feed" width="240" height="150"></canvas></div>
+            <div id="shotswrap"><div class="k" style="font-size:.75rem;color:var(--muted)">Captured images</div><div id="shots"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <hr>
+    <div class="caption">Drag to orbit · scroll to zoom · use the sidebar to change every dimension. All rollers stay tangent to the belt and all supports stay under the gallery no matter what you change, since every part is generated from the same incline/trough coordinate frame.</div>
+  </main>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   3D INTERACTIVE MODEL — INCLINED OVERLAND CONVEYOR (IRON ORE TRANSPORT SYSTEM)
+   Faithful browser port of the Streamlit app (Plotly.js, fully client-side).
+   ========================================================================== */
+
+// ---------------------------------------------------------------- vec helpers
+const add3 = (a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const sub3 = (a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const mul3 = (a,k)=>[a[0]*k,a[1]*k,a[2]*k];
+const cross3=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const norm3 = a=>Math.hypot(a[0],a[1],a[2]);
+
+function linspace(a,b,n){
+  if(n===1) return [a];
+  const o=new Array(n), st=(b-a)/(n-1);
+  for(let i=0;i<n;i++) o[i]=a+st*i;
+  o[n-1]=b;
+  return o;
+}
+function arange(start,stop,step){
+  const o=[]; const n=Math.ceil((stop-start)/step);
+  for(let i=0;i<n;i++) o.push(start+i*step);
+  return o;
+}
+function uniqueSorted(arr){
+  const s=arr.slice().sort((a,b)=>a-b), o=[];
+  for(const v of s){ if(!o.length || Math.abs(v-o[o.length-1])>1e-12) o.push(v); }
+  return o;
+}
+
+// seeded RNG (mulberry32) — deterministic ore pile
+function makeRng(seed){
+  let a=seed>>>0;
+  const next=()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+  return {
+    random:next,
+    uniform:(lo,hi)=>lo+(hi-lo)*next(),
+    triangular:()=>{ const u=next(); return u<=0.5 ? -1+Math.sqrt(2*u) : 1-Math.sqrt(2*(1-u)); },
+    integers:(lo,hi)=>lo+Math.floor(next()*(hi-lo)),
+  };
+}
+
+// ============================================================================
+// 1. GEOMETRY PRIMITIVES
+// ============================================================================
+function cylinder(p0,p1,radius,nSides=14){
+  const axis=sub3(p1,p0);
+  let length=norm3(axis); if(length<1e-9) length=1e-9;
+  const an=mul3(axis,1/length);
+  const helper=Math.abs(an[0])<0.9?[1,0,0]:[0,1,0];
+  let perp1=cross3(an,helper); perp1=mul3(perp1,1/norm3(perp1));
+  const perp2=cross3(an,perp1);
+
+  const verts=[]; const ring=[];
+  for(let k=0;k<nSides;k++){
+    const t=2*Math.PI*k/nSides, c=Math.cos(t)*radius, s=Math.sin(t)*radius;
+    ring.push([perp1[0]*c+perp2[0]*s, perp1[1]*c+perp2[1]*s, perp1[2]*c+perp2[2]*s]);
+  }
+  for(const r of ring) verts.push(add3(p0,r));
+  for(const r of ring) verts.push(add3(p1,r));
+  verts.push(p0.slice(), p1.slice());
+
+  const cap0=2*nSides, cap1=2*nSides+1, faces=[];
+  for(let i=0;i<nSides;i++){
+    const j=(i+1)%nSides;
+    faces.push([i,j,nSides+j]);
+    faces.push([i,nSides+j,nSides+i]);
+    faces.push([cap0,j,i]);
+    faces.push([cap1,nSides+i,nSides+j]);
+  }
+  return {v:verts,f:faces};
+}
+
+function mergeMeshes(list){
+  const x=[],y=[],z=[],I=[],J=[],K=[]; let off=0;
+  for(const m of list){
+    for(const p of m.v){ x.push(p[0]); y.push(p[1]); z.push(p[2]); }
+    for(const f of m.f){ I.push(f[0]+off); J.push(f[1]+off); K.push(f[2]+off); }
+    off+=m.v.length;
+  }
+  return {x,y,z,i:I,j:J,k:K};
+}
+
+function box(center,dx,dy,dz){
+  const [cx,cy,cz]=center;
+  const x0=cx-dx/2,x1=cx+dx/2,y0=cy-dy/2,y1=cy+dy/2,z0=cz,z1=cz+dz;
+  return {
+    v:[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],
+    f:[[0,1,2],[0,2,3],[4,6,5],[4,7,6],[0,4,5],[0,5,1],[1,5,6],[1,6,2],[2,6,7],[2,7,3],[3,7,4],[3,4,0]],
+  };
+}
+
+// ============================================================================
+// 2. CONVEYOR CENTERLINE / TROUGH MATH
+// ============================================================================
+class ConveyorFrame{
+  constructor(length,inclineDeg,tailHeight){
+    this.L=length;
+    this.theta=inclineDeg*Math.PI/180;
+    this.T=[Math.cos(this.theta),0,Math.sin(this.theta)];
+    this.N=[-Math.sin(this.theta),0,Math.cos(this.theta)];
+    this.B=[0,1,0];
+    this.P0=[0,0,tailHeight];
+  }
+  point(s,u,n=0){
+    return [
+      this.P0[0]+s*this.T[0]+u*this.B[0]+n*this.N[0],
+      this.P0[1]+s*this.T[1]+u*this.B[1]+n*this.N[1],
+      this.P0[2]+s*this.T[2]+u*this.B[2]+n*this.N[2],
+    ];
+  }
+  heightGain(){ return this.L*Math.sin(this.theta); }
+  run(){ return this.L*Math.cos(this.theta); }
+}
+
+function troughProfile(u,width,troughRad){
+  const ch=0.20*width, au=Math.abs(u);
+  return au<=ch ? 0 : (au-ch)*Math.tan(troughRad);
+}
+function troughUGrid(width,n=40){
+  const ch=0.20*width, seg=Math.max(6,Math.floor(n/3));
+  return uniqueSorted([
+    ...linspace(-width/2,-ch,seg),
+    ...linspace(-ch,ch,seg),
+    ...linspace(ch,width/2,seg),
+  ]);
+}
+
+// ============================================================================
+// 3. MODEL BUILDERS
+// ============================================================================
+function buildBeltGeometry(frame,width,troughRad,returnGap,nS=70){
+  const sVals=linspace(0,frame.L,nS), uVals=troughUGrid(width,34);
+  const S=[],Ptop=[],Pbot=[];
+  for(const s of sVals){
+    const rowS=[],rowT=[],rowB=[];
+    for(const u of uVals){
+      rowS.push(s);
+      rowT.push(frame.point(s,u,troughProfile(u,width,troughRad)));
+      rowB.push(frame.point(s,u,-returnGap));
+    }
+    S.push(rowS); Ptop.push(rowT); Pbot.push(rowB);
+  }
+  return {S,Ptop,Pbot,stripeLength:2.0};
+}
+function beltIntensity(S,shift,stripeLength,direction){
+  return S.map(row=>row.map(s=>0.55+0.45*Math.cos(2*Math.PI*(s-direction*shift)/stripeLength)));
+}
+const gridComp=(P,c)=>P.map(row=>row.map(p=>p[c]));
+
+function buildIdlers(frame,width,troughRad,carrySpacing,returnSpacing,returnGap,rollerRadius,prHead,prTail){
+  const ch=0.20*width, carry=[], ret=[];
+  const margin=carrySpacing*0.6;
+  const sCarry=arange(margin,frame.L-margin,carrySpacing);
+  const nCenter=troughProfile(ch,width,troughRad), nEdge=troughProfile(width/2,width,troughRad);
+  for(const s of sCarry){
+    carry.push(cylinder(frame.point(s,-ch,-rollerRadius), frame.point(s,ch,-rollerRadius), rollerRadius));
+    carry.push(cylinder(frame.point(s,ch,nCenter-rollerRadius), frame.point(s,width/2,nEdge-rollerRadius), rollerRadius));
+    carry.push(cylinder(frame.point(s,-ch,nCenter-rollerRadius), frame.point(s,-width/2,nEdge-rollerRadius), rollerRadius));
+  }
+  const marginR=returnSpacing*0.6;
+  const sReturn=arange(marginR,frame.L-marginR,returnSpacing);
+  const retR=rollerRadius*1.1;
+  for(const s of sReturn){
+    ret.push(cylinder(frame.point(s,-width/2,-returnGap-retR), frame.point(s,width/2,-returnGap-retR), retR));
+  }
+  const tail=cylinder(frame.point(0,-width/2,-prTail), frame.point(0,width/2,-prTail), prTail, 24);
+  const head=cylinder(frame.point(frame.L,-width/2,-prHead), frame.point(frame.L,width/2,-prHead), prHead, 24);
+
+  const mk=(m,color,name,lighting)=>({
+    type:"mesh3d", x:m.x,y:m.y,z:m.z,i:m.i,j:m.j,k:m.k,
+    color, flatshading:true, name, hoverinfo:"skip", lighting
+  });
+  const traces=[
+    mk(mergeMeshes(carry),"#9aa0a6","Troughing idlers",{ambient:0.4,diffuse:0.7,specular:0.6}),
+    mk(mergeMeshes(ret),"#7c828a","Return idlers",{ambient:0.4,diffuse:0.7,specular:0.6}),
+    mk(mergeMeshes([head]),"#4a4f57","Head (drive) pulley",{ambient:0.35,diffuse:0.7,specular:0.7}),
+    mk(mergeMeshes([tail]),"#5a5f68","Tail pulley",{ambient:0.35,diffuse:0.7,specular:0.7}),
+  ];
+  return {traces, nIdlers:sCarry.length*3+sReturn.length, nCarrySets:sCarry.length};
+}
+
+function buildTrestle(frame,width,towerSpacing,groundZ=0){
+  const xs=[],ys=[],zs=[];
+  const margin=towerSpacing*0.5;
+  const sTowers=arange(margin,frame.L-margin*0.3,towerSpacing);
+  const legOuter=width/2+0.55;
+  const addLine=(a,b)=>{ xs.push(a[0],b[0],null); ys.push(a[1],b[1],null); zs.push(a[2],b[2],null); };
+  let prevL=null,prevR=null;
+  for(const s of sTowers){
+    const topL=frame.point(s,-legOuter,-0.35), topR=frame.point(s,legOuter,-0.35);
+    const baseL=[topL[0],-legOuter,groundZ], baseR=[topR[0],legOuter,groundZ];
+    addLine(baseL,topL); addLine(baseR,topR); addLine(topL,topR);
+    addLine(baseL,topR); addLine(baseR,topL);
+    if(prevL){ addLine(prevL,topL); addLine(prevR,topR); }
+    prevL=topL; prevR=topR;
+  }
+  return {trace:{type:"scatter3d",x:xs,y:ys,z:zs,mode:"lines",line:{color:"#6e7580",width:5},name:"Support trestle",hoverinfo:"skip"},
+          nTowers:sTowers.length};
+}
+
+function buildWalkwayAndHandrail(frame,width,side,postSpacing=1.8,walkwayOffset=0.55,deckDrop=0.30,postHeight=1.05,midHeight=0.55){
+  const uInner=side*(width/2+0.02), uOuter=side*(width/2+walkwayOffset);
+  const sDeck=linspace(0,frame.L,70), uDeck=[uInner,uOuter];
+  const X=[],Y=[],Z=[],C=[];
+  for(const s of sDeck){
+    const rx=[],ry=[],rz=[],rc=[];
+    for(const u of uDeck){
+      const p=frame.point(s,u,-deckDrop);
+      rx.push(p[0]);ry.push(p[1]);rz.push(p[2]);rc.push(1);
+    }
+    X.push(rx);Y.push(ry);Z.push(rz);C.push(rc);
+  }
+  const deck={type:"surface",x:X,y:Y,z:Z,surfacecolor:C,colorscale:[[0,"#c8983f"],[1,"#c8983f"]],
+              showscale:false,opacity:0.9,hoverinfo:"skip",name:"Walkway grating"};
+
+  const xs=[],ys=[],zs=[];
+  const nPosts=Math.max(3,Math.floor(frame.L/postSpacing)+1);
+  const sPosts=linspace(0,frame.L,nPosts);
+  const tops=[],mids=[];
+  for(const s of sPosts){
+    const base=add3(frame.point(s,uOuter,-deckDrop),[0,0,0]);
+    const top=[base[0],base[1],base[2]+postHeight], mid=[base[0],base[1],base[2]+midHeight];
+    tops.push(top); mids.push(mid);
+    xs.push(base[0],top[0],null); ys.push(base[1],top[1],null); zs.push(base[2],top[2],null);
+  }
+  for(let i=0;i<tops.length-1;i++){
+    const a=tops[i],b=tops[i+1];
+    xs.push(a[0],b[0],null); ys.push(a[1],b[1],null); zs.push(a[2],b[2],null);
+  }
+  for(let i=0;i<mids.length-1;i++){
+    const a=mids[i],b=mids[i+1];
+    xs.push(a[0],b[0],null); ys.push(a[1],b[1],null); zs.push(a[2],b[2],null);
+  }
+  const rails={type:"scatter3d",x:xs,y:ys,z:zs,mode:"lines",line:{color:"#e8b923",width:4},name:"Handrail",hoverinfo:"skip"};
+  return {deck,rails};
+}
+
+function buildDriveAndTakeup(frame,width,prHead,prTail){
+  const hp=frame.point(frame.L,0,-prHead);
+  const headCenter=add3(hp,mul3(frame.N,prHead+0.35));
+  const m=mergeMeshes([box(headCenter,0.55,width*0.42,0.35)]);
+  const motor={type:"mesh3d",x:m.x,y:m.y,z:m.z,i:m.i,j:m.j,k:m.k,color:"#c94f2d",flatshading:true,name:"Drive motor / gearbox",hoverinfo:"skip"};
+  const takeupCenter=frame.point(-0.6,0,-prTail-0.9);
+  const t=mergeMeshes([box(takeupCenter,0.35,width*0.38,0.7)]);
+  const takeup={type:"mesh3d",x:t.x,y:t.y,z:t.z,i:t.i,j:t.j,k:t.k,color:"#3f4652",flatshading:true,name:"Take-up counterweight",hoverinfo:"skip"};
+  return {motor,takeup};
+}
+
+function buildOreBase(frame,width,troughRad,nRocks,seed=7){
+  const rng=makeRng(seed);
+  const sLo=frame.L*0.06, sHi=frame.L*0.95;
+  const s0=[],u=[],nTotal=[],sizes=[],colors=[];
+  const uMax=width*0.42, pileDims=width*0.16;
+  for(let i=0;i<nRocks;i++) s0.push(rng.uniform(sLo,sHi));
+  const uArr=[],beltN=[];
+  for(let i=0;i<nRocks;i++){ const uu=rng.triangular()*uMax; uArr.push(uu); beltN.push(troughProfile(uu,width,troughRad)); }
+  for(let i=0;i<nRocks;i++){
+    let h=pileDims*Math.pow(1-Math.abs(uArr[i])/uMax,1.3);
+    h=Math.max(h,0)*rng.uniform(0.35,1.0);
+    nTotal.push(beltN[i]+h);
+  }
+  for(let i=0;i<nRocks;i++) nTotal[i]+=rng.uniform(0,0.03);
+  for(let i=0;i<nRocks;i++) sizes.push(rng.uniform(3.0,9.0));
+  for(let i=0;i<nRocks;i++){ if(rng.random()>0.92) sizes[i]*=1.8; }
+  for(let i=0;i<nRocks;i++){
+    const r=rng.integers(120,175);
+    const g=Math.floor(r*rng.uniform(0.38,0.5));
+    const b=Math.floor(r*rng.uniform(0.28,0.4));
+    colors.push(`rgb(${r},${g},${b})`);
+  }
+  return {s0,u:uArr,nTotal,sizes,colors,sLo,sHi};
+}
+function orePointsAtShift(frame,ob,shift){
+  const span=ob.sHi-ob.sLo, X=[],Y=[],Z=[];
+  for(let i=0;i<ob.s0.length;i++){
+    let m=(ob.s0[i]-ob.sLo+shift)%span; if(m<0) m+=span;
+    const p=frame.point(ob.sLo+m,ob.u[i],ob.nTotal[i]);
+    X.push(p[0]);Y.push(p[1]);Z.push(p[2]);
+  }
+  return {x:X,y:Y,z:Z};
+}
+function buildOreTrace(frame,ob,shift=0){
+  const p=orePointsAtShift(frame,ob,shift);
+  return {type:"scatter3d",x:p.x,y:p.y,z:p.z,mode:"markers",
+    marker:{size:ob.sizes,color:ob.colors,opacity:1.0,line:{width:0}},
+    name:"Iron ore load",hoverinfo:"skip"};
+}
+
+function buildGround(frame,width){
+  const pad=width*3, x0=-2.0, x1=frame.run()+4.0, y0=-pad, y1=pad;
+  return {type:"surface",x:[[x0,x1],[x0,x1]],y:[[y0,y0],[y1,y1]],z:[[0,0],[0,0]],
+    showscale:false,opacity:0.35,colorscale:[[0,"#8a6a4f"],[1,"#8a6a4f"]],hoverinfo:"skip",name:"Ground"};
+}
+
+// ============================================================================
+// 4. SIDEBAR CONTROLS
+// ============================================================================
+const TROUGH_OPTIONS=[20,35,45];
+const VIEWS=["Isometric","Side elevation","Top (plan)","Head-on"];
+const UI=[
+  {h:"Conveyor geometry"},
+  {id:"length",t:"range",label:"Belt (incline) length, m",min:15,max:90,step:1,val:42},
+  {id:"incline_deg",t:"range",label:"Incline angle, ° (CEMA max ≈ 18° for plain troughed belt)",min:0,max:18,step:0.5,val:12},
+  {id:"belt_width",t:"range",label:"Belt width, m",min:0.6,max:2.4,step:0.1,val:1.4},
+  {id:"tail_height",t:"range",label:"Tail (loading) pulley height above ground, m",min:0.6,max:2.5,step:0.1,val:1.2},
+
+  {h:"Idlers & trough shape"},
+  {id:"trough_angle_deg",t:"select",label:"Troughing idler angle, ° (CEMA std: 20 / 35 / 45)",options:TROUGH_OPTIONS,val:35},
+  {id:"carry_spacing",t:"range",label:"Carry-side idler spacing, m",min:0.8,max:1.6,step:0.1,val:1.2},
+  {id:"return_spacing",t:"range",label:"Return-side idler spacing, m",min:2.0,max:3.6,step:0.2,val:3.0},
+  {id:"roller_radius",t:"range",label:"Idler roller radius, m",min:0.05,max:0.16,step:0.01,val:0.09},
+
+  {h:"Pulleys"},
+  {id:"pulley_radius_head",t:"range",label:"Head (drive) pulley radius, m",min:0.25,max:0.55,step:0.01,val:0.38},
+  {id:"pulley_radius_tail",t:"range",label:"Tail pulley radius, m",min:0.20,max:0.45,step:0.01,val:0.30},
+
+  {h:"Structure"},
+  {id:"tower_spacing",t:"range",label:"Trestle tower spacing, m",min:5,max:12,step:0.5,val:7},
+  {id:"show_walkway",t:"check",label:"Show walkway & handrails",val:true},
+  {id:"both_sides",t:"check",label:"Handrail on both sides",val:true},
+  {id:"show_ground",t:"check",label:"Show ground plane",val:true},
+  {id:"show_motor_takeup",t:"check",label:"Show motor housing & take-up counterweight blocks",val:false,
+   help:"Off by default — these were the boxy shapes sitting at the head and tail ends. Turn on if you want them for reference."},
+
+  {h:"Ore load"},
+  {id:"show_ore",t:"check",label:"Show ore on belt",val:true},
+  {id:"n_rocks",t:"range",label:"Ore chunk count (display)",min:200,max:4000,step:100,val:1600},
+
+  {h:"Belt motion"},
+  {id:"enable_animation",t:"check",label:"▶ Run continuous belt animation",val:true,
+   help:"Uses Plotly's native client-side animation (Play/Pause buttons under the plot) so the belt runs smoothly with no page flicker — nothing reruns on the Python side while it plays."},
+  {id:"frame_count",t:"range",label:"Animation length, frames",min:60,max:400,step:20,val:220,dis:p=>!p.enable_animation},
+  {id:"frame_duration_ms",t:"range",label:"Frame duration, ms (lower = faster belt)",min:20,max:80,step:5,val:35,dis:p=>!p.enable_animation},
+  {id:"ore_anim_cap",t:"range",label:"Ore chunks while animating (perf. cap)",min:100,max:1200,step:50,val:600,dis:p=>!(p.enable_animation&&p.show_ore)},
+  {id:"manual_phase",t:"range",label:"Manual belt position (used when animation is off)",min:0,max:1,step:0.02,val:0,dis:p=>p.enable_animation},
+
+  {h:"Drone inspection"},
+  {id:"show_drone",t:"check",label:"Show drone & damage spot",val:true,
+   help:"When on, the belt animation length is set by the drone mission (takeoff → follow damage spot → return → land)."},
+  {id:"btn_launch_side",t:"button",label:"🚁 Launch drone",dis:p=>!p.show_drone},
+  {id:"spot_pos_pct",t:"range",label:"Damage spot start position, % of belt length",min:5,max:60,step:1,val:15,dis:p=>!p.show_drone},
+  {id:"drone_alt",t:"range",label:"Drone hover height above spot, m",min:1.5,max:8,step:0.5,val:3,dis:p=>!p.show_drone},
+  {id:"drone_speed",t:"range",label:"Drone transit speed, m / frame (follow speed = belt speed)",min:0.15,max:0.6,step:0.05,val:0.3,dis:p=>!p.show_drone},
+  {id:"capture_every",t:"range",label:"Image capture interval, frames",min:5,max:40,step:5,val:15,dis:p=>!p.show_drone},
+
+  {h:"Camera"},
+  {id:"view",t:"radio",label:"Preset view",options:VIEWS,val:"Isometric"},
+];
+
+const sidebar=document.getElementById("sidebar");
+const decimals=step=>{const s=String(step);return s.includes(".")?s.split(".")[1].length:0;};
+
+UI.forEach(c=>{
+  if(c.h){ const h=document.createElement("h3"); h.textContent=c.h; sidebar.appendChild(h); return; }
+  const wrap=document.createElement("div");
+  if(c.t==="range"){
+    wrap.className="ctl"; wrap.id="w_"+c.id;
+    wrap.innerHTML=`<label class="l"><span>${c.label}</span><span class="v" id="v_${c.id}"></span></label>
+      <input type="range" id="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.val}">`;
+  } else if(c.t==="select"){
+    wrap.className="ctl"; wrap.id="w_"+c.id;
+    wrap.innerHTML=`<label class="l"><span>${c.label}</span><span class="v" id="v_${c.id}"></span></label>
+      <input type="range" id="${c.id}" min="0" max="${c.options.length-1}" step="1" value="${c.options.indexOf(c.val)}">`;
+  } else if(c.t==="check"){
+    wrap.innerHTML=`<label class="chk"><input type="checkbox" id="${c.id}" ${c.val?"checked":""}><span>${c.label}</span></label>`
+      +(c.help?`<div class="help">${c.help}</div>`:"");
+  } else if(c.t==="button"){
+    wrap.className="ctl"; wrap.id="w_"+c.id;
+    wrap.innerHTML=`<button class="btn full" id="${c.id}">${c.label}</button>`;
+  } else if(c.t==="radio"){
+    wrap.className="ctl";
+    wrap.innerHTML=`<label class="l"><span>${c.label}</span></label>`+
+      c.options.map(o=>`<label class="radio"><input type="radio" name="${c.id}" value="${o}" ${o===c.val?"checked":""}><span>${o}</span></label>`).join("");
+  }
+  sidebar.appendChild(wrap);
+});
+
+function readParams(){
+  const p={};
+  UI.forEach(c=>{
+    if(c.h) return;
+    if(c.t==="range") p[c.id]=parseFloat(document.getElementById(c.id).value);
+    else if(c.t==="select") p[c.id]=c.options[parseInt(document.getElementById(c.id).value)];
+    else if(c.t==="check") p[c.id]=document.getElementById(c.id).checked;
+    else if(c.t==="radio") p[c.id]=document.querySelector(`input[name="${c.id}"]:checked`).value;
+  });
+  return p;
+}
+function refreshLabels(p){
+  UI.forEach(c=>{
+    if(c.h) return;
+    if(c.t==="range"){ document.getElementById("v_"+c.id).textContent=p[c.id].toFixed(decimals(c.step)); }
+    if(c.t==="select"){ document.getElementById("v_"+c.id).textContent=p[c.id]; }
+    if(c.dis){ document.getElementById("w_"+c.id).classList.toggle("disabled",c.dis(p)); }
+  });
+}
+
+// ============================================================================
+// 5. BUILD THE SCENE
+// ============================================================================
+const CAMERA_PRESETS={
+  "Isometric":{eye:{x:1.6,y:-1.7,z:1.1}},
+  "Side elevation":{eye:{x:0.02,y:-3.0,z:0.35}},
+  "Top (plan)":{eye:{x:0.01,y:0.01,z:3.2}},
+  "Head-on":{eye:{x:3.0,y:0.02,z:0.35}},
+};
+
+// cache of static (non-moving) geometry, keyed on the params that affect it
+let _staticKey=null,_staticVal=null;
+function buildStaticTraces(p,returnGap){
+  const key=JSON.stringify([p.length,p.incline_deg,p.belt_width,p.tail_height,p.trough_angle_deg,p.carry_spacing,
+    p.return_spacing,p.roller_radius,p.pulley_radius_head,p.pulley_radius_tail,p.tower_spacing,p.show_walkway,
+    p.both_sides,p.show_ground,p.show_motor_takeup,returnGap]);
+  if(key===_staticKey) return _staticVal;
+  const frame=new ConveyorFrame(p.length,p.incline_deg,p.tail_height);
+  const troughRad=p.trough_angle_deg*Math.PI/180;
+  const traces=[];
+  if(p.show_ground) traces.push(buildGround(frame,p.belt_width));
+  const tr=buildTrestle(frame,p.belt_width,p.tower_spacing);
+  traces.push(tr.trace);
+  const id=buildIdlers(frame,p.belt_width,troughRad,p.carry_spacing,p.return_spacing,returnGap,
+    p.roller_radius,p.pulley_radius_head,p.pulley_radius_tail);
+  traces.push(...id.traces);
+  if(p.show_motor_takeup){
+    const d=buildDriveAndTakeup(frame,p.belt_width,p.pulley_radius_head,p.pulley_radius_tail);
+    traces.push(d.motor,d.takeup);
+  }
+  if(p.show_walkway){
+    const r=buildWalkwayAndHandrail(frame,p.belt_width,+1);
+    traces.push(r.deck,r.rails);
+    if(p.both_sides){ const l=buildWalkwayAndHandrail(frame,p.belt_width,-1); traces.push(l.deck,l.rails); }
+  }
+  _staticKey=key;
+  _staticVal={traces,meta:{nIdlers:id.nIdlers,nTowers:tr.nTowers,nCarrySets:id.nCarrySets,
+    heightGain:frame.heightGain(),run:frame.run()}};
+  return _staticVal;
+}
+
+// ---------------------------------------------------------------- DRONE
+function buildDroneLocal(scale){
+  const body=[],rot=[];
+  body.push(box([0,0,-0.05],0.28,0.28,0.1));
+  body.push(cylinder([-0.5,0,0],[0.5,0,0],0.025,8));
+  body.push(cylinder([0,-0.5,0],[0,0.5,0],0.025,8));
+  body.push(box([0,0,-0.17],0.1,0.1,0.12));            // camera gimbal
+  [[0.5,0],[-0.5,0],[0,0.5],[0,-0.5]].forEach(([tx,ty])=>{
+    body.push(cylinder([tx,ty,0],[tx,ty,0.05],0.03,8));
+    rot.push(cylinder([tx,ty,0.05],[tx,ty,0.065],0.22,16));
+  });
+  const sc=list=>{const g=mergeMeshes(list);
+    return {x:g.x.map(v=>v*scale),y:g.y.map(v=>v*scale),z:g.z.map(v=>v*scale),i:g.i,j:g.j,k:g.k};};
+  return {body:sc(body),rotor:sc(rot),scale};
+}
+
+/* Mission: takeoff -> pursue damage spot (constant transit speed) -> lock on and
+   follow it at the belt's own constant speed, capturing images -> return -> land */
+function buildMission(frame,p){
+  const vBelt=0.10, vD=p.drone_speed, H=p.drone_alt, L=frame.L;
+  const scale=Math.max(1,p.belt_width/1.4);
+  const restZ=0.2*scale;
+  const s0=L*p.spot_pos_pct/100, nSp=0.3;
+  const spotS=i=>Math.min(s0+i*vBelt,L);
+  const tgt=i=>{const q=frame.point(spotS(i),0,nSp);return [q[0],q[1],q[2]+H];};
+  const home=[frame.P0[0]+2,-(p.belt_width/2+2.5),0];
+  let pos=[home[0],home[1],restZ];
+  const rec=[];
+  const push=(phase,follow,capture,flash,spd)=>rec.push({pos:pos.slice(),s:spotS(rec.length),phase,follow,capture,flash,spd});
+  push("Parked on helipad",false,false,false,0);
+  let phase="takeoff",followStart=-1,i=1;
+  while(i<4000){
+    if(phase==="takeoff"){
+      const zt=Math.max(2.5,tgt(i)[2]);
+      pos[2]=Math.min(zt,pos[2]+vD);
+      push("Takeoff",false,false,false,vD);
+      if(pos[2]>=zt-1e-9) phase="approach";
+    } else if(phase==="approach"){
+      if(spotS(i)>=L*0.97){ phase="return"; continue; }
+      const t=tgt(i), d=sub3(t,pos), dist=norm3(d);
+      if(dist<=vD){ pos=t.slice(); phase="follow"; followStart=i; continue; }
+      pos=add3(pos,mul3(d,vD/dist));
+      push("Approaching damage spot",false,false,false,vD);
+    } else if(phase==="follow"){
+      pos=tgt(i);
+      const k=i-followStart, m=k%p.capture_every;
+      push("Following damage spot — imaging",true,m===0,m<3,vBelt);
+      if(spotS(i)>=L*0.97) phase="return";
+    } else if(phase==="return"){
+      const t=[home[0],home[1],pos[2]], d=sub3(t,pos), dist=norm3(d);
+      if(dist<=vD){ pos=t; phase="land"; continue; }
+      pos=add3(pos,mul3(d,vD/dist));
+      push("Returning to helipad",false,false,false,vD);
+    } else if(phase==="land"){
+      pos[2]=Math.max(restZ,pos[2]-vD*0.6);
+      push("Landing",false,false,false,vD*0.6);
+      if(pos[2]<=restZ+1e-9){ for(let e=0;e<8;e++) push("Landed — mission complete",false,false,false,0); break; }
+    }
+    i++;
+  }
+  return {rec,home,scale,restZ};
+}
+
+function droneFrameData(rig,frame,m){
+  const [px,py,pz]=m.pos;
+  const tr=g=>({x:g.x.map(v=>v+px),y:g.y.map(v=>v+py),z:g.z.map(v=>v+pz)});
+  const sc=frame.point(m.s,0,0.3);
+  const R=0.45, rx=[],ry=[],rz=[];
+  for(let k=0;k<=16;k++){
+    const a=2*Math.PI*k/16, q=frame.point(m.s+R*Math.cos(a),R*Math.sin(a),0.3);
+    rx.push(q[0]);ry.push(q[1]);rz.push(q[2]);
+  }
+  const bx=[],by=[],bz=[], apex=[px,py,pz-0.17*rig.scale];
+  [0,90,180,270].forEach(deg=>{
+    const a=deg*Math.PI/180, c=m.follow?frame.point(m.s+R*Math.cos(a),R*Math.sin(a),0.3):apex;
+    bx.push(apex[0],c[0],null);by.push(apex[1],c[1],null);bz.push(apex[2],c[2],null);
+  });
+  const line=m.flash?{color:"#ffffff",width:8}:{color:"#4fd1ff",width:2};
+  return [tr(rig.local.body),tr(rig.local.rotor),{x:bx,y:by,z:bz,line},{x:rx,y:ry,z:rz},{x:[sc[0]],y:[sc[1]],z:[sc[2]]}];
+}
+
+function buildDroneRig(frame,mission){
+  const local=buildDroneLocal(mission.scale);
+  const rig={local,scale:mission.scale};
+  const d=droneFrameData(rig,frame,mission.rec[0]);
+  const lighting={ambient:0.5,diffuse:0.8,specular:0.5};
+  const mk=(g,color,name,extra)=>Object.assign({type:"mesh3d",x:g.x,y:g.y,z:g.z,i:local.body.i,j:local.body.j,k:local.body.k,
+    color,flatshading:true,name,hoverinfo:"skip",lighting},extra||{});
+  rig.traces=[
+    Object.assign(mk(d[0],"#e8eaed","Drone"),{i:local.body.i,j:local.body.j,k:local.body.k}),
+    Object.assign(mk(d[1],"#ff9f1c","Drone rotors",{opacity:0.75}),{i:local.rotor.i,j:local.rotor.j,k:local.rotor.k}),
+    {type:"scatter3d",mode:"lines",x:d[2].x,y:d[2].y,z:d[2].z,line:d[2].line,name:"Camera beam",hoverinfo:"skip"},
+    {type:"scatter3d",mode:"lines",x:d[3].x,y:d[3].y,z:d[3].z,line:{color:"#ff3b30",width:6},name:"Damage spot ring",hoverinfo:"skip"},
+    {type:"scatter3d",mode:"markers",x:d[4].x,y:d[4].y,z:d[4].z,
+     marker:{size:7,color:"#ff3b30",symbol:"diamond",line:{color:"#ffffff",width:1}},name:"Damage spot",hoverinfo:"skip"},
+  ];
+  return rig;
+}
+
+function buildHelipad(mission){
+  const [hx,hy]=mission.home, r=0.9*mission.scale, xs=[],ys=[],zs=[];
+  for(let k=0;k<=24;k++){const a=2*Math.PI*k/24; xs.push(hx+r*Math.cos(a));ys.push(hy+r*Math.sin(a));zs.push(0.02);}
+  const h=0.4*mission.scale;
+  [[-h,-h,-h,h],[h,-h,h,h],[-h,0,h,0]].forEach(([x0,y0,x1,y1])=>{
+    xs.push(null,hx+x0,hx+x1);ys.push(null,hy+y0,hy+y1);zs.push(null,0.02,0.02);
+  });
+  return {type:"scatter3d",mode:"lines",x:xs,y:ys,z:zs,line:{color:"#ffd54a",width:5},name:"Helipad",hoverinfo:"skip"};
+}
+
+function render(p){
+  const frame=new ConveyorFrame(p.length,p.incline_deg,p.tail_height);
+  const troughRad=p.trough_angle_deg*Math.PI/180;
+  const returnGap=Math.max(0.5,p.roller_radius*6);
+
+  const belt=buildBeltGeometry(frame,p.belt_width,troughRad,returnGap,70);
+  const beltLighting={ambient:0.55,diffuse:0.6,specular:0.35,roughness:0.7};
+  const beltScale=[[0,"#141414"],[1,"#3d3d3d"]];
+  const top0={type:"surface",x:gridComp(belt.Ptop,0),y:gridComp(belt.Ptop,1),z:gridComp(belt.Ptop,2),
+    surfacecolor:beltIntensity(belt.S,0,belt.stripeLength,+1),colorscale:beltScale,showscale:false,
+    name:"Carry belt (loaded strand)",hoverinfo:"skip",lighting:beltLighting};
+  const bottom0={type:"surface",x:gridComp(belt.Pbot,0),y:gridComp(belt.Pbot,1),z:gridComp(belt.Pbot,2),
+    surfacecolor:beltIntensity(belt.S,0,belt.stripeLength,-1),colorscale:beltScale,showscale:false,
+    name:"Return belt (empty strand)",hoverinfo:"skip",lighting:beltLighting};
+  const animated=[top0,bottom0];
+
+  let oreBase=null;
+  if(p.show_ore){
+    const nEff=p.enable_animation?Math.min(p.n_rocks,p.ore_anim_cap):p.n_rocks;
+    oreBase=buildOreBase(frame,p.belt_width,troughRad,nEff,7);
+    animated.push(buildOreTrace(frame,oreBase,0));
+  }
+
+  let drone=null, mission=null;
+  if(p.show_drone){
+    mission=buildMission(frame,p);
+    drone=buildDroneRig(frame,mission);
+    animated.push(...drone.traces);
+  }
+
+  const {traces:staticTraces,meta}=buildStaticTraces(p,returnGap);
+  const data=animated.concat(drone?[buildHelipad(mission)]:[],staticTraces);
+
+  const layout={
+    scene:{
+      aspectmode:"data",
+      xaxis:{title:{text:"Along conveyor (m)"},showbackground:false,color:"#cfd3da",gridcolor:"#3a3f47"},
+      yaxis:{title:{text:"Across belt (m)"},showbackground:false,color:"#cfd3da",gridcolor:"#3a3f47"},
+      zaxis:{title:{text:"Height (m)"},showbackground:false,color:"#cfd3da",gridcolor:"#3a3f47"},
+      camera:CAMERA_PRESETS[p.view],
+    },
+    margin:{l:0,r:0,t:10,b:0},
+    height:780,
+    showlegend:false,
+    paper_bgcolor:"#0e1117",
+    font:{color:"#e8e8e8"},
+  };
+
+  let frames=[];
+  const animOn=p.enable_animation||p.show_drone;
+  if(animOn){
+    const vPerFrame=0.10, nAnim=animated.length;
+    const nFrames=p.show_drone?mission.rec.length:p.frame_count;
+    for(let i=0;i<nFrames;i++){
+      const shift=i*vPerFrame;
+      const fd=[
+        {surfacecolor:beltIntensity(belt.S,shift,belt.stripeLength,+1)},
+        {surfacecolor:beltIntensity(belt.S,shift,belt.stripeLength,-1)},
+      ];
+      if(p.show_ore){ const pts=orePointsAtShift(frame,oreBase,shift); fd.push({x:pts.x,y:pts.y,z:pts.z}); }
+      if(drone) fd.push(...droneFrameData(drone,frame,mission.rec[i]));
+      frames.push({name:String(i),data:fd,traces:[...Array(nAnim).keys()]});
+    }
+    layout.updatemenus=[{
+      type:"buttons",direction:"left",showactive:false,
+      x:0.02,y:0.02,xanchor:"left",yanchor:"bottom",pad:{t:0,r:6},
+      bgcolor:"#1c2027",bordercolor:"#3a3f47",font:{color:"#e8e8e8"},
+      buttons:[
+        {label:"▶ Play",method:"animate",args:[null,{frame:{duration:p.frame_duration_ms,redraw:true},
+          transition:{duration:0},fromcurrent:false,mode:"immediate"}]},
+        {label:"⏸ Pause",method:"animate",args:[[null],{frame:{duration:0,redraw:false},
+          transition:{duration:0},mode:"immediate"}]},
+      ],
+    }];
+  } else {
+    const shift=p.manual_phase*belt.stripeLength;
+    data[0].surfacecolor=beltIntensity(belt.S,shift,belt.stripeLength,+1);
+    data[1].surfacecolor=beltIntensity(belt.S,shift,belt.stripeLength,-1);
+    if(p.show_ore){
+      const pts=orePointsAtShift(frame,oreBase,shift);
+      data[2].x=pts.x; data[2].y=pts.y; data[2].z=pts.z;
+    }
+  }
+  return {data,layout,frames,meta,mission};
+}
+
+// ============================================================================
+// 6. MAIN
+// ============================================================================
+const plotDiv=document.getElementById("plot");
+let timer=null;
+
+function update(){
+  const p=readParams();
+  refreshLabels(p);
+  const spinner=document.getElementById("spinner");
+  spinner.style.display="block";
+  // let the spinner paint before heavy geometry work
+  setTimeout(()=>{
+    const {data,layout,frames,meta,mission}=render(p);
+    MISSION=mission; LASTP=p;
+    Plotly.purge(plotDiv);
+    Plotly.newPlot(plotDiv,{data,layout,frames,config:{responsive:true,displaylogo:false}}).then(()=>{
+      plotDiv.on("plotly_animatingframe",ev=>{ hudFrame(parseInt(ev.name,10)); });
+    });
+    hudSetup(p);
+    document.getElementById("m_run").textContent=meta.run.toFixed(1)+" m";
+    document.getElementById("m_lift").textContent=meta.heightGain.toFixed(1)+" m";
+    document.getElementById("m_sets").textContent=meta.nCarrySets;
+    document.getElementById("m_roll").textContent=meta.nIdlers+2;
+    document.getElementById("m_tow").textContent=meta.nTowers;
+    document.getElementById("animcap").style.display=(p.enable_animation||p.show_drone)?"block":"none";
+    spinner.style.display="none";
+  },10);
+}
+function scheduleUpdate(){ clearTimeout(timer); timer=setTimeout(update,120); }
+
+// ---------------------------------------------------------------- DRONE HUD / LAUNCH
+let MISSION=null, LASTP=null, hudLast=-1, capN=0;
+const $=id=>document.getElementById(id);
+
+function shotDraw(ctx,w,h,n,sPos){
+  ctx.fillStyle="#1d1d1f"; ctx.fillRect(0,0,w,h);
+  const period=w*0.45, off=((sPos%2)/2)*period;
+  ctx.fillStyle="#2f2f33";
+  for(let x=-period+off;x<w;x+=period) ctx.fillRect(x,0,w*0.03,h);
+  const r=makeRng(1000+n*7);
+  for(let k=0;k<60;k++){
+    const g=90+Math.floor(r.random()*50);
+    ctx.fillStyle=`rgb(${g},${Math.floor(g*0.42)},${Math.floor(g*0.3)})`;
+    ctx.fillRect(r.random()*w,r.random()*h,1+r.random()*3*(w/240),1+r.random()*3*(w/240));
+  }
+  const cr=makeRng(42), jit=(r.random()-0.5)*h*0.03;
+  ctx.beginPath(); let x=w*0.2,y=h*0.45+jit; ctx.moveTo(x,y);
+  while(x<w*0.8){ x+=w*0.05+cr.random()*w*0.04; y=h*0.5+(cr.random()-0.5)*h*0.22+jit; ctx.lineTo(x,y); }
+  ctx.lineWidth=Math.max(2,w/50); ctx.strokeStyle="#050505"; ctx.stroke();
+  ctx.lineWidth=Math.max(1,w/160); ctx.strokeStyle="#b0361f"; ctx.stroke();
+  ctx.strokeStyle="#ff3b30"; ctx.lineWidth=Math.max(1,w/120); ctx.strokeRect(w*0.15,h*0.28,w*0.7,h*0.44);
+  ctx.fillStyle="#ff3b30"; ctx.font=Math.max(8,Math.round(w/22))+"px monospace"; ctx.fillText("DAMAGE",w*0.16,h*0.26);
+  ctx.fillStyle="#e8e8e8";
+  ctx.fillText(n?`IMG ${n}  s=${sPos.toFixed(1)}m`:`LIVE  s=${sPos.toFixed(1)}m`,w*0.04,h*0.94);
+}
+function feedIdle(){
+  const c=$("feed"), ctx=c.getContext("2d");
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,c.width,c.height);
+  ctx.fillStyle="#6b7280"; ctx.font="13px monospace"; ctx.fillText("CAMERA STANDBY",c.width/2-170/2+15,c.height/2);
+}
+function hudShow(m,p){
+  const ms=p?p.frame_duration_ms:35;
+  $("h_phase").textContent=m.phase;
+  $("h_alt").textContent=m.pos[2].toFixed(1)+" m";
+  $("h_spd").textContent=m.spd.toFixed(2)+" m/frame (≈ "+(m.spd*1000/ms).toFixed(1)+" m/s)";
+  $("h_spot").textContent=m.s.toFixed(1)+" m along belt";
+}
+function hudSetup(p){
+  const on=p.show_drone;
+  $("hud").style.display=on?"block":"none";
+  $("btn_launch").disabled=!on;
+  $("tbhint").style.display=on?"inline":"none";
+  if(!on||!MISSION) return;
+  capN=0; hudLast=-1; $("shots").innerHTML=""; $("h_img").textContent="0";
+  feedIdle(); hudShow(MISSION.rec[0],p);
+}
+function hudFrame(i){
+  if(!MISSION||!LASTP||isNaN(i)) return;
+  const m=MISSION.rec[i]; if(!m) return;
+  if(i===0||i<hudLast){ capN=0; hudLast=-1; $("shots").innerHTML=""; $("h_img").textContent="0"; }
+  hudShow(m,LASTP);
+  const fc=$("feed"), fctx=fc.getContext("2d");
+  if(m.follow){
+    shotDraw(fctx,fc.width,fc.height,0,m.s);
+    if(m.flash){ fctx.fillStyle="rgba(255,255,255,"+(0.55-0.15*(i%3))+")"; fctx.fillRect(0,0,fc.width,fc.height); }
+    fctx.fillStyle="#ff3b30"; fctx.font="11px monospace"; fctx.fillText("● REC",fc.width-52,14);
+  } else feedIdle();
+  if(m.capture && i>hudLast){
+    capN++;
+    const t=document.createElement("canvas"); t.width=120; t.height=75;
+    shotDraw(t.getContext("2d"),120,75,capN,m.s);
+    const d=document.createElement("div"); d.className="shot";
+    d.appendChild(t); d.appendChild(document.createTextNode("#"+capN+" · "+m.s.toFixed(1)+" m"));
+    $("shots").prepend(d);
+    $("h_img").textContent=String(capN);
+  }
+  hudLast=i;
+}
+function launchDrone(){
+  if(!MISSION||!LASTP) return;
+  Plotly.animate(plotDiv,null,{frame:{duration:LASTP.frame_duration_ms,redraw:true},
+    transition:{duration:0},fromcurrent:false,mode:"immediate"});
+}
+$("btn_launch").addEventListener("click",launchDrone);
+$("btn_launch_side").addEventListener("click",launchDrone);
+
+sidebar.addEventListener("input",scheduleUpdate);
+sidebar.addEventListener("change",scheduleUpdate);
+update();
+</script>
+</body>
+</html>
